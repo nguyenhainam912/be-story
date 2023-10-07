@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -14,24 +15,36 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { IUser } from './users.interface';
 import { Public, ResponseMessage, User } from 'src/decorator/customize';
 
-@Controller('users')
+@Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Post('/bulk-create')
+  @ResponseMessage('Create a new user')
+  createBulk(@Body() listCreateUserDto: CreateUserDto[], @User() user: IUser) {
+    return this.usersService.createBulk(listCreateUserDto, user);
+  }
 
   @Post()
   @ResponseMessage('Create a new user')
   create(@Body() createUserDto: CreateUserDto, @User() user: IUser) {
     return this.usersService.create(createUserDto, user);
   }
+  @Get('/staff')
+  @ResponseMessage('Fetch staff')
+  findAll() {
+    return this.usersService.findAll();
+  }
 
   @Get()
-  @ResponseMessage('Fetch user with paginate')
-  findAll(
-    @Query('page') currentPage: string,
-    @Query('limit') limit: string,
+  @Public()
+  @ResponseMessage('fetch user with pageinate')
+  findAllWithPage(
+    @Query('current') currentPage: string,
+    @Query('pageSize') limit: string,
     @Query() qs: string,
   ) {
-    return this.usersService.findAll(+currentPage, +limit, qs);
+    return this.usersService.findAllWithPage(+currentPage, +limit, qs);
   }
 
   @Get(':id')
@@ -41,7 +54,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Patch()
+  @Put()
   @ResponseMessage('Update a User')
   update(@Body() updateUserDto: UpdateUserDto, @User() user: IUser) {
     return this.usersService.update(updateUserDto, user);

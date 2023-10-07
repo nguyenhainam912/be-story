@@ -9,7 +9,6 @@ import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { IUser } from './users.interface';
 import aqp from 'api-query-params';
 import { User } from 'src/decorator/customize';
-import { async } from 'rxjs';
 
 @Injectable()
 export class UsersService {
@@ -40,24 +39,61 @@ export class UsersService {
     let dataUser = await this.userModel.create({
       email: createUserDto.email,
       password: hashPassword,
-      name: createUserDto.name,
-      age: createUserDto.age,
-      gender: createUserDto.gender,
-      adddress: createUserDto.address,
-      company: {
-        _id: createUserDto.company._id,
-        name: createUserDto.company.name,
-      },
-      role: createUserDto.role,
+      fullName: createUserDto.fullName,
+      phone: createUserDto.phone,
+      address: createUserDto.address,
+      role: createUserDto.role ? createUserDto.role : 'USER',
+      avatar: createUserDto.avatar,
       createdBy: { _id: user._id, email: user.email },
     });
     return dataUser;
   }
 
-  async findAll(currentPage: number, limit: number, qs: string) {
+  async createBulk(listCreateUserDto: CreateUserDto[], @User() user: IUser) {
+    let countSuccess = listCreateUserDto.length;
+    let countError = 0;
+    let message = null;
+
+    for (let createUserDto of listCreateUserDto) {
+      const hashPassword = this.getHashPassword(createUserDto.password);
+      const isExist = await this.userModel.findOne({
+        email: createUserDto.email,
+      });
+      if (isExist) {
+        countSuccess--;
+        countError++;
+        throw new BadRequestException('Email is exist');
+      }
+
+      await this.userModel.create({
+        email: createUserDto.email,
+        password: hashPassword,
+        fullName: createUserDto.fullName,
+        phone: createUserDto.phone,
+        role: createUserDto.role ? createUserDto.role : 'User',
+        avatar: createUserDto.avatar,
+        createdBy: { _id: user._id, email: user.email },
+      });
+    }
+
+    return {
+      countSuccess,
+      countError,
+      message,
+    };
+  }
+
+  async findAll() {
+    const result = await this.userModel
+      .find({ role: 'USER' })
+      .select('fullName');
+    return result;
+  }
+
+  async findAllWithPage(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population } = aqp(qs);
-    delete filter.page;
-    delete filter.limit;
+    delete filter.current;
+    delete filter.pageSize;
 
     let offset = (+currentPage - 1) * +limit;
     let defaultLimit = +limit ? +limit : 10;
@@ -66,11 +102,11 @@ export class UsersService {
 
     const result = await this.userModel
       .find(filter)
+      .select('-refreshToken -password')
       .skip(offset)
       .limit(defaultLimit)
       .sort(sort as any)
       .populate(population)
-      .select('-password')
       .exec();
     return {
       meta: {
@@ -87,14 +123,16 @@ export class UsersService {
     if (!mongoose.Types.ObjectId.isValid(id)) return 'Not found';
 
     return this.userModel.findOne({ _id: id }).select('-password');
+    // .populate({ path: 'role', select: { name: 1, _id: 1 } });
   }
 
   findOneByUsername(username: string) {
-    return this.userModel.findOne({ email: username });
+    return this.userModel
+      .findOne({ email: username })
+      .populate({ path: 'role', select: { name: 1 } });
   }
 
   async update(updateUserDto: UpdateUserDto, @User() user: IUser) {
-    console.log(updateUserDto, user);
     return await this.userModel.updateOne(
       { _id: updateUserDto._id },
 
@@ -104,6 +142,11 @@ export class UsersService {
 
   async remove(id: string, @User() user: IUser) {
     if (!mongoose.Types.ObjectId.isValid(id)) return 'Not found';
+    const foundUser = await this.userModel.findById(id);
+    if (foundUser && foundUser.email === 'admin@gmail.com') {
+      throw new BadRequestException(' k the xoa');
+    }
+
     await this.userModel.updateOne(
       { _id: id },
       { deletedBy: { id: user._id, email: user.email } },

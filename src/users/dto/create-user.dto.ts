@@ -1,24 +1,16 @@
 import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsMongoId,
   IsNotEmpty,
   IsNotEmptyObject,
   IsObject,
+  IsString,
   ValidateNested,
 } from 'class-validator';
 import mongoose from 'mongoose';
 
-class Company {
-  @IsNotEmpty()
-  _id: mongoose.Schema.Types.ObjectId;
-  @IsNotEmpty()
-  name: string;
-}
-
 export class CreateUserDto {
-  @IsNotEmpty()
-  name: string;
-
   @IsEmail()
   @IsNotEmpty()
   email: string;
@@ -27,28 +19,27 @@ export class CreateUserDto {
   password: string;
 
   @IsNotEmpty()
-  age: number;
+  fullName: string;
+
+  avatar: string;
 
   @IsNotEmpty()
-  gender: string;
+  phone: string;
 
   @IsNotEmpty()
   address: string;
 
-  @IsNotEmpty()
+  @IsString()
   role: string;
 
-  @IsNotEmptyObject()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => Company)
-  company: Company;
+  // @IsNotEmptyObject()
+  // @IsObject()
+  // @ValidateNested()
+  // @Type(() => Company)
+  // company: Company;
 }
 
 export class RegisterUserDto {
-  @IsNotEmpty()
-  name: string;
-
   @IsEmail()
   @IsNotEmpty()
   email: string;
@@ -57,11 +48,8 @@ export class RegisterUserDto {
   password: string;
 
   @IsNotEmpty()
-  age: number;
+  fullName: string;
 
   @IsNotEmpty()
-  gender: string;
-
-  @IsNotEmpty()
-  address: string;
+  phone: string;
 }

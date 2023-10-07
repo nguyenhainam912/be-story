@@ -3,20 +3,25 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { genSaltSync, hashSync } from 'bcryptjs';
-import { Response } from 'express';
+import { Response, response } from 'express';
 import ms from 'ms';
+import { async } from 'rxjs';
 import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
+//import { Role, RoleDocument } from 'src/roles/schemas/role.schema';
 import { RegisterUserDto } from 'src/users/dto/create-user.dto';
 import { User, UserDocument } from 'src/users/schemas/user.schema';
 import { IUser } from 'src/users/users.interface';
 import { UsersService } from 'src/users/users.service';
-@Injectable()
+//import { USER_ROLE } from 'src/databases/sample';
+//import { RolesService } from 'src/roles/roles.service';
+
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
+    //private rolesService: RolesService,
+    @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>, //@InjectModel(Role.name) private roleModel: SoftDeleteModel<RoleDocument>,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
@@ -24,7 +29,15 @@ export class AuthService {
     if (user) {
       const isValid = this.usersService.isValidPassword(pass, user.password);
       if (isValid === true) {
-        return user;
+        //const userRole = user.role as unknown as { _id: string; name: string };
+        //const temp: any = await this.rolesService.findOne(userRole?._id);
+
+        const objUser = {
+          ...user.toObject(),
+          //permissions: temp?.permissions ?? [],
+        };
+
+        return objUser;
       }
     }
     return null;
@@ -38,13 +51,12 @@ export class AuthService {
   };
 
   async login(user: any, response: Response) {
-    const res: IUser = await this.userModel.findOne({ email: user.username });
-    const { _id, name, email, role } = res;
+    const { _id, fullName, email, role, phone, avatar } = user;
     const payload = {
       sub: 'token login',
       iss: 'from server',
       _id,
-      name,
+      fullName,
       email,
       role,
     };
@@ -58,7 +70,7 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: { _id, name, email, role },
+      user: { _id, email, role, fullName, phone, avatar },
     };
   }
 
@@ -72,13 +84,13 @@ export class AuthService {
       throw new BadRequestException('Email is exist');
     }
 
+    //const userRole = await this.roleModel.findOne({ name: USER_ROLE });
+
     return await this.userModel.create({
       email: registerUserDto.email,
       password: hashPassword,
-      name: registerUserDto.name,
-      age: registerUserDto.age,
-      gender: registerUserDto.gender,
-      adddress: registerUserDto.address,
+      fullName: registerUserDto.fullName,
+      phone: registerUserDto.phone,
       role: 'USER',
     });
   }
@@ -108,17 +120,20 @@ export class AuthService {
       });
       let user = await this.findUserByToken(refreshToken);
       if (user) {
-        const { _id, name, email, role } = user;
+        const { _id, fullName, email, role } = user;
         const payload = {
           sub: 'token refresh',
           iss: 'from server',
           _id,
-          name,
+          fullName,
           email,
           role,
         };
         const refresh_token = this.createRefreshToken(payload);
         await this.updateUserToken(refresh_token, _id.toString());
+        const userRole = user.role as unknown as { _id: string; name: string };
+        //const temp: any = await this.rolesService.findOne(userRole._id);
+
         //set refresh as cookies
         response.clearCookie('refresh_token');
         response.cookie('refresh_token', refresh_token, {
@@ -126,10 +141,18 @@ export class AuthService {
           maxAge: ms(this.configService.get<string>('JWT_ACCES_EXPIRE')) * 1000,
         });
 
-        return {
+        const a = {
           access_token: this.jwtService.sign(payload),
-          user: { _id, name, email, role },
+          user: {
+            _id,
+            fullName,
+            email,
+            role,
+            //permissions: temp?.permissions ?? [],
+          },
         };
+
+        return a;
       } else {
         throw new BadRequestException(`Refresh token het han vui long login`);
       }
@@ -140,5 +163,25 @@ export class AuthService {
 
   findUserByToken = async (refreshToken: string) => {
     return await this.userModel.findOne({ refreshToken });
+    // .populate({
+    //   path: 'role',
+    //   select: { name: 1 },
+    // })
+  };
+
+  findUser = async (user: IUser) => {
+    let { _id, fullName, email, role, phone, avatar } =
+      await this.userModel.findOne({ _id: user._id });
+    return { user: { _id, email, role, fullName, phone, avatar } };
+    // .populate({
+    //   path: 'role',
+    //   select: { name: 1 },
+    // })
+  };
+
+  logout = async (response: Response) => {
+    //await this.updateUserToken('', user._id);
+    response.clearCookie('refresh_token');
+    return 'ok';
   };
 }

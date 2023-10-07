@@ -12,22 +12,22 @@ export class User {
   password: string;
 
   @Prop()
-  name: string;
+  fullName: string;
 
   @Prop()
-  age: number;
+  phone: string;
 
   @Prop()
-  gender: string;
-
-  @Prop()
-  adddress: string;
-
-  @Prop({ type: Object })
-  company: { _id: mongoose.Schema.Types.ObjectId; name: string };
+  address: string;
 
   @Prop()
   role: string;
+
+  @Prop()
+  avatar: string;
+
+  // @Prop()
+  // isActive: boolean;
 
   @Prop()
   refreshToken: string;
