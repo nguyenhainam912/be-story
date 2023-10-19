@@ -17,9 +17,12 @@ export class OrdersService {
     private userModel: SoftDeleteModel<UserDocument>,
   ) {}
   async create(createOrderDto: CreateOrderDto, user: IUser) {
-    if (createOrderDto.phone) {
-      let a = await this.userModel.find({ phone: createOrderDto.phone });
-      if ((a = [])) {
+    if (createOrderDto.phone && createOrderDto.name) {
+      let a = await this.userModel.find({
+        phone: createOrderDto.phone,
+        fullName: createOrderDto.name,
+      });
+      if (a.length == 0) {
         await this.userModel.create({
           email: `${createOrderDto.name}@gmail.com`,
           password: '...',
