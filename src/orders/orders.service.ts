@@ -25,7 +25,7 @@ export class OrdersService {
       if (a.length == 0) {
         await this.userModel.create({
           email: `${createOrderDto.name}@gmail.com`,
-          password: '...',
+          password: '....',
           fullName: createOrderDto.name,
           phone: createOrderDto.phone,
           address: createOrderDto.address,
